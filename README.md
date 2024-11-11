@@ -8,6 +8,8 @@ The API is written in Python Flask and hosted on a raspberry pi on the local net
 The Frontend was built locally to visualize the trips. 
 
 can module: https://www.amazon.com/HiLetgo-MCP2515-TJA1050-Receiver-Arduino/dp/B01D0WSEWU 
+
 GPS module: https://www.amazon.com/Navigation-Positioning-Microcontroller-Compatible-Sensitivity/dp/B084MK8BS2
+
 SD module: https://www.amazon.com/HiLetgo-Adater-Interface-Conversion-Arduino/dp/B07BJ2P6X6
 
