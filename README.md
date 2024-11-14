@@ -1,4 +1,4 @@
-# vehicle-tracking
+# vehicle-telematics
 In this project, I use an ESP32 micro to read vehicle gps data. The data is stored and served to a frontend using a Flask based API. 
 
 The ESP32 uses an MCP2515 CAN module to communicate with the vehicle over OBD2. It uses a GPS module to read gps location. It uses an SD card to store that information until it is able to connect to WiFi and upload the data to the DB using the API. The ESP32 code is found under the ESP32 folder. 
