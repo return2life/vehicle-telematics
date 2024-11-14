@@ -15,7 +15,7 @@ const char* ssid = "";
 const char* password = "";
 
 // Flask server endpoint
-const char* serverUrl = "";  // Change this to your server's IP or URL
+const char* serverUrl = "raspberrypi.local:5000/upload";  // Change this to your server's IP or URL
 
 // GPS and SD card setup
 static const int RXPin = 16, TXPin = 17;
