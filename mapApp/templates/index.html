@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trip Visualization</title>
+    <!-- Load the Google Maps API with async and defer -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=[API_KEY]&loading=async&libraries=marker"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            width: 70%;
+        }
+
+        #sidebar {
+            width: 28%;
+            margin-left: 2%;
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+
+        #slider {
+            width: 100%;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 8px;
+        }
+
+        #tripData {
+            margin-top: 0px;
+        }
+
+        .trip-data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .trip-data-item {
+            width: 32%;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <div id="map"></div>
+        <input type="range" id="slider" min="0" max="100" value="0" style="display: none;">
+        <button id="playBtn" style="display: none; width: 100px;">Play</button>
+
+        <!-- Trip data fields displayed below the map in rows -->
+        <div id="tripData">
+            <h4>Trip Data</h4>
+            <div class="trip-data-row">
+                <div class="trip-data-item"><strong>Time:</strong> <span id="time"></span></div>
+                <div class="trip-data-item"><strong>Vehicle Speed:</strong> <span id="vehicleSpeed"></span></div>
+                <div class="trip-data-item"><strong>Engine Load:</strong> <span id="engineLoad"></span></div>
+            </div>
+            <div class="trip-data-row">
+                <div class="trip-data-item"><strong>Mass Airflow:</strong> <span id="massAirflow"></span></div>
+                <div class="trip-data-item"><strong>Engine RPM:</strong> <span id="engineRpm"></span></div>
+                <div class="trip-data-item"><strong>Throttle Position:</strong> <span id="throttlePos"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar with vehicle and trip data (VINs and sessions) -->
+    <div id="sidebar">
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>VIN / Start Time</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        var map;
+        var tripData = [];
+        var marker;
+        var polyline;
+        var currentIndex = 0;
+        var interval;
+
+        function initMap() {
+            // Initialize the map centered on San Diego
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: 32.7157, lng: -117.1611}, // Your local coordinates
+                zoom: 17,
+                mapId: "" // your mapID from google
+            });
+
+            polyline = new google.maps.Polyline({
+                path: [],
+                geodesic: true,
+                strokeColor: '#FF0000',
+                strokeOpacity: 1.0,
+                strokeWeight: 2
+            });
+            polyline.setMap(map);
+        }
+
+        window.onload = function() {
+            initMap();
+            fetchVINs(); // Fetch VINs when the page loads
+        };
+
+        function fetchVINs() {
+            fetch('http://raspberrypi.local:5000/vins')
+            .then(response => response.json())
+            .then(data => {
+                console.log("Fetched VINs:", data);
+                updateTableWithVINs(data);
+            })
+            .catch(error => console.error('Error fetching VINs:', error));
+        }
+
+        function fetchSessionsForVIN(vin) {
+            fetch(`http://raspberrypi.local:5000/sessions?vin=${vin}`)
+            .then(response => response.json())
+            .then(data => {
+                updateTableWithSessions(data.sessions, vin);
+            })
+            .catch(error => console.error('Error fetching sessions:', error));
+        }
+
+        function updateTableWithSessions(sessions, vin) {
+            var tableBody = document.querySelector("#dataTable tbody");
+            tableBody.innerHTML = ""; // Clear the table
+            console.log("Fetched Sessions:", sessions);
+            sessions.forEach(session => {
+                var row = document.createElement('tr');
+                var startTime = session.starttime;
+                row.innerHTML = `<td><a href="#" class="session-link">${startTime}</a></td>`;
+                row.querySelector('a').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    fetchTripData(vin, startTime);
+                });
+                tableBody.appendChild(row);
+            });
+        }
+
+        function updateTableWithVINs(data) {
+            var vins = data.VINs;
+            var tableBody = document.querySelector("#dataTable tbody");
+            tableBody.innerHTML = ""; // Clear any existing rows
+            vins.forEach(vin => {
+                var row = document.createElement('tr');
+                row.innerHTML = `<td><a href="#" class="vin-link">${vin}</a></td>`;
+                row.querySelector('a').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    fetchSessionsForVIN(vin);
+                });
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        function fetchTripData(vin, startTime) {
+            var url = `http://raspberrypi.local:5000/getfile?vin=${vin}&startTime=${encodeURIComponent(startTime)}`;
+            fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                tripData = data; // Assign the trip data to be visualized
+                document.getElementById('slider').max = tripData.length - 1;
+                document.getElementById('slider').style.display = 'block';
+                document.getElementById('playBtn').style.display = 'block';
+                updateMap();
+            })
+            .catch(error => console.error('Error fetching trip data:', error));
+        }
+
+        function updateMap() {
+            if (tripData.length === 0) return;
+
+            var currentPoint = tripData[currentIndex];
+            var position = { lat: parseFloat(currentPoint.latitude), lng: parseFloat(currentPoint.longitude) };
+
+            if (!marker) {
+                marker = new google.maps.marker.AdvancedMarkerElement({
+                    position: position,
+                    map: map
+                });
+            } else {
+                marker.position = position;
+            }
+
+            polyline.getPath().push(new google.maps.LatLng(position));
+            map.setCenter(position);
+
+            // Update the trip data display
+            document.getElementById('time').textContent = currentPoint.time;
+            document.getElementById('vehicleSpeed').textContent = currentPoint.vehicle_speed;
+            document.getElementById('engineLoad').textContent = currentPoint.engine_load;
+            document.getElementById('massAirflow').textContent = currentPoint.mass_airflow;
+            document.getElementById('engineRpm').textContent = currentPoint.engine_rpm;
+            document.getElementById('throttlePos').textContent = currentPoint.throttle_pos;
+
+        }
+
+
+        document.getElementById('slider').addEventListener('input', function(event) {
+            currentIndex = parseInt(event.target.value);
+            updateMap();
+        });
+
+        document.getElementById('playBtn').addEventListener('click', function() {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            } else {
+                interval = setInterval(function() {
+                    if (currentIndex < tripData.length - 1) {
+                        currentIndex++;
+                        document.getElementById('slider').value = currentIndex;
+                        updateMap();
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 500);
+            }
+        });
+    </script>
+</body>
+</html>
