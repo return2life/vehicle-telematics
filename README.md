@@ -1,6 +1,6 @@
 >>https://www.instructables.com/ESP32-Vehicle-Telematics-OBD2-CAN-and-GPS-Reportin/
 >>![wired](https://github.com/user-attachments/assets/a668c967-5a59-45eb-99fe-af51a6c6e203)
-
+>>lib - TinyGPSPlus , autowp-mcp2515
 # vehicle-telematics
 In this project, I use an ESP32 micro to read vehicle gps data. The data is stored and served to a frontend using a Flask based API. 
 
